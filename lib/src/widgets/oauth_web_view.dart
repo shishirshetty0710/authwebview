@@ -63,19 +63,10 @@ class _OAuthWebViewState extends State<OAuthWebView>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused) {
-      _disposeWebView();
-    } else if (state == AppLifecycleState.resumed &&
+    if (state == AppLifecycleState.resumed &&
         !_isDisposed &&
         _webViewController == null) {
       _retryAuthorization();
-    }
-  }
-
-  Future<void> _disposeWebView() async {
-    if (_webViewController != null) {
-      _webViewController?.dispose();
-      _webViewController = null;
     }
   }
 
@@ -310,208 +301,210 @@ class _OAuthWebViewState extends State<OAuthWebView>
             AnimatedOpacity(
               opacity: _isLoading ? 0.0 : 1.0,
               duration: const Duration(milliseconds: 200),
-            child: InAppWebView(
-              initialUrlRequest: URLRequest(url: WebUri(_authorizationUrl!)),
-              initialSettings: InAppWebViewSettings(
-                cacheEnabled: false,
-                javaScriptEnabled: true,
-                userAgent: _userAgent,
-                defaultTextEncodingName: 'UTF-8',
-                disableDefaultErrorPage: true,
-                supportZoom: false,
-                displayZoomControls: false,
-                clearCache: true,
-                clearSessionCache: true,
-                useShouldInterceptRequest: true,
-                transparentBackground: true,
-                // iOS: Prevent jumping during focus changes
-                suppressesIncrementalRendering: true,
-                allowsInlineMediaPlayback: true,
-                preferredContentMode: UserPreferredContentMode.MOBILE,
-              ),
-            onWebViewCreated: (controller) {
-              _webViewController = controller;
+              child: InAppWebView(
+                initialUrlRequest: URLRequest(url: WebUri(_authorizationUrl!)),
+                initialSettings: InAppWebViewSettings(
+                  cacheEnabled: false,
+                  javaScriptEnabled: true,
+                  userAgent: _userAgent,
+                  defaultTextEncodingName: 'UTF-8',
+                  disableDefaultErrorPage: true,
+                  supportZoom: false,
+                  displayZoomControls: false,
+                  clearCache: true,
+                  clearSessionCache: true,
+                  useShouldInterceptRequest: true,
+                  transparentBackground: true,
+                  // iOS: Prevent jumping during focus changes
+                  suppressesIncrementalRendering: true,
+                  allowsInlineMediaPlayback: true,
+                  preferredContentMode: UserPreferredContentMode.MOBILE,
+                ),
+                onWebViewCreated: (controller) {
+                  _webViewController = controller;
 
-              controller.addJavaScriptHandler(
-                handlerName: 'FlutterChannel',
-                callback: (args) {},
-              );
-            },
-            onLoadStart: (controller, url) async {
-              if (_isDisposed || !mounted) return;
-
-              final urlString = url?.toString() ?? '';
-
-              final handled = await _tryHandleRedirect(
-                urlString,
-                controller: controller,
-              );
-
-              if (handled) {
-                return;
-              }
-
-              if (mounted) {
-                setState(() => _isLoading = true);
-              }
-            },
-            onLoadStop: (controller, url) async {
-              if (_isDisposed || !mounted) return;
-
-              if (_isHandlingRedirect) {
-                return;
-              }
-
-              if (_firstLoad && widget.onInitialize != null) {
-                widget.onInitialize!();
-                _firstLoad = false;
-              }
-
-              setState(() => _isLoading = false);
-            },
-            onReceivedError: (controller, request, error) async {
-              final url = request.url.toString();
-              if (_isDisposed || !mounted) return;
-
-              final handled = await _tryHandleRedirect(url, controller: controller);
-              if (handled) return;
-
-              // A list of network, security, or URL errors that make loading the main frame impossible.
-              final unrecoverableErrors = [
-                WebResourceErrorType.HOST_LOOKUP,
-                WebResourceErrorType.IO, // General I/O error, covers connection issues
-                WebResourceErrorType.TIMEOUT,
-                WebResourceErrorType.FAILED_SSL_HANDSHAKE,
-                WebResourceErrorType.BAD_URL,
-                WebResourceErrorType.UNKNOWN,
-                // Android-specific error for when HTTP is blocked.
-                WebResourceErrorType.UNSAFE_RESOURCE,
-              ];
-
-              // Only show the fatal error page for unrecoverable errors on the main frame.
-              if (request.isForMainFrame == true &&
-                  unrecoverableErrors.contains(error.type)) {
-                if (_errorPageShown || _isHandlingRedirect) return;
-
-                try {
-                  await controller.stopLoading();
-                  await controller.loadData(
-                    data: _getBlankPageHtml(),
-                    mimeType: 'text/html',
-                    encoding: 'utf-8',
+                  controller.addJavaScriptHandler(
+                    handlerName: 'FlutterChannel',
+                    callback: (args) {},
                   );
-                } catch (_) {
-                  // Suppress errors
-                }
+                },
+                onLoadStart: (controller, url) async {
+                  if (_isDisposed || !mounted) return;
 
-                if (mounted) {
-                  setState(() {
-                    _errorPageShown = true;
-                    _isLoading = false;
-                  });
-                }
-              }
-            },
-            onReceivedHttpError: (controller, request, response) async {
-              if (_isDisposed || !mounted) return;
+                  final urlString = url?.toString() ?? '';
 
-              // Show fatal error for HTTP errors (4xx, 5xx) on the main frame.
-              if (request.isForMainFrame == true &&
-                  (response.statusCode ?? 0) >= 400) {
-                if (_errorPageShown || _isHandlingRedirect) return;
-
-                try {
-                  await controller.stopLoading();
-                  await controller.loadData(
-                    data: _getBlankPageHtml(),
-                    mimeType: 'text/html',
-                    encoding: 'utf-8',
+                  final handled = await _tryHandleRedirect(
+                    urlString,
+                    controller: controller,
                   );
-                } catch (_) {
-                  // Suppress errors
-                }
 
-                if (mounted) {
-                  setState(() {
-                    _errorPageShown = true;
-                    _isLoading = false;
-                  });
-                }
-              }
-            },
-            shouldOverrideUrlLoading: (controller, navigationAction) async {
-              if (_isDisposed) {
-                return NavigationActionPolicy.CANCEL;
-              }
+                  if (handled) {
+                    return;
+                  }
 
-              final url = navigationAction.request.url?.toString() ?? '';
+                  if (mounted) {
+                    setState(() => _isLoading = true);
+                  }
+                },
+                onLoadStop: (controller, url) async {
+                  if (_isDisposed || !mounted) return;
 
-              final handled = await _tryHandleRedirect(
-                url,
-                controller: controller,
-              );
+                  if (_isHandlingRedirect) {
+                    return;
+                  }
 
-              if (handled) {
-                return NavigationActionPolicy.CANCEL;
-              }
+                  if (_firstLoad && widget.onInitialize != null) {
+                    widget.onInitialize!();
+                    _firstLoad = false;
+                  }
 
-              if (_isHandlingRedirect) {
-                return NavigationActionPolicy.CANCEL;
-              }
+                  setState(() => _isLoading = false);
+                },
+                onReceivedError: (controller, request, error) async {
+                  final url = request.url.toString();
+                  if (_isDisposed || !mounted) return;
 
-              return NavigationActionPolicy.ALLOW;
-            },
-            onUpdateVisitedHistory: (controller, url, isReload) async {
-              if (_isDisposed || !mounted) {
-                return;
-              }
+                  final handled =
+                      await _tryHandleRedirect(url, controller: controller);
+                  if (handled) return;
 
-              final urlString = url?.toString() ?? '';
+                  // A list of network, security, or URL errors that make loading the main frame impossible.
+                  final unrecoverableErrors = [
+                    WebResourceErrorType.HOST_LOOKUP,
+                    WebResourceErrorType
+                        .IO, // General I/O error, covers connection issues
+                    WebResourceErrorType.TIMEOUT,
+                    WebResourceErrorType.FAILED_SSL_HANDSHAKE,
+                    WebResourceErrorType.BAD_URL,
+                    WebResourceErrorType.UNKNOWN,
+                    // Android-specific error for when HTTP is blocked.
+                    WebResourceErrorType.UNSAFE_RESOURCE,
+                  ];
 
-              await _tryHandleRedirect(
-                urlString,
-                controller: controller,
-              );
-            },
-            onProgressChanged: (_, __) {},
-            onConsoleMessage: (_, __) {},
-            onLoadResource: (controller, resource) async {
-              if (_isDisposed || _isHandlingRedirect) {
-                return;
-              }
+                  // Only show the fatal error page for unrecoverable errors on the main frame.
+                  if (request.isForMainFrame == true &&
+                      unrecoverableErrors.contains(error.type)) {
+                    if (_errorPageShown || _isHandlingRedirect) return;
 
-              final url = resource.url.toString();
+                    try {
+                      await controller.stopLoading();
+                      await controller.loadData(
+                        data: _getBlankPageHtml(),
+                        mimeType: 'text/html',
+                        encoding: 'utf-8',
+                      );
+                    } catch (_) {
+                      // Suppress errors
+                    }
 
-              await _tryHandleRedirect(
-                url,
-                controller: controller,
-              );
-            },
-            shouldInterceptRequest: (controller, request) async {
-              if (_isDisposed) {
-                return null;
-              }
+                    if (mounted) {
+                      setState(() {
+                        _errorPageShown = true;
+                        _isLoading = false;
+                      });
+                    }
+                  }
+                },
+                onReceivedHttpError: (controller, request, response) async {
+                  if (_isDisposed || !mounted) return;
 
-              final url = request.url.toString();
+                  // Show fatal error for HTTP errors (4xx, 5xx) on the main frame.
+                  if (request.isForMainFrame == true &&
+                      (response.statusCode ?? 0) >= 400) {
+                    if (_errorPageShown || _isHandlingRedirect) return;
 
-              final handled = await _tryHandleRedirect(
-                url,
-                controller: controller,
-                loadBlankPage: false,
-              );
+                    try {
+                      await controller.stopLoading();
+                      await controller.loadData(
+                        data: _getBlankPageHtml(),
+                        mimeType: 'text/html',
+                        encoding: 'utf-8',
+                      );
+                    } catch (_) {
+                      // Suppress errors
+                    }
 
-              if (handled || _isHandlingRedirect) {
-                return WebResourceResponse(
-                  contentType: 'text/html',
-                  contentEncoding: 'utf-8',
-                  statusCode: 200,
-                  reasonPhrase: 'OK',
-                  data: Uint8List.fromList(_getBlankPageHtml().codeUnits),
-                );
-              }
+                    if (mounted) {
+                      setState(() {
+                        _errorPageShown = true;
+                        _isLoading = false;
+                      });
+                    }
+                  }
+                },
+                shouldOverrideUrlLoading: (controller, navigationAction) async {
+                  if (_isDisposed) {
+                    return NavigationActionPolicy.CANCEL;
+                  }
 
-              return null; // Allow other requests to proceed normally
-            },
+                  final url = navigationAction.request.url?.toString() ?? '';
+
+                  final handled = await _tryHandleRedirect(
+                    url,
+                    controller: controller,
+                  );
+
+                  if (handled) {
+                    return NavigationActionPolicy.CANCEL;
+                  }
+
+                  if (_isHandlingRedirect) {
+                    return NavigationActionPolicy.CANCEL;
+                  }
+
+                  return NavigationActionPolicy.ALLOW;
+                },
+                onUpdateVisitedHistory: (controller, url, isReload) async {
+                  if (_isDisposed || !mounted) {
+                    return;
+                  }
+
+                  final urlString = url?.toString() ?? '';
+
+                  await _tryHandleRedirect(
+                    urlString,
+                    controller: controller,
+                  );
+                },
+                onProgressChanged: (_, __) {},
+                onConsoleMessage: (_, __) {},
+                onLoadResource: (controller, resource) async {
+                  if (_isDisposed || _isHandlingRedirect) {
+                    return;
+                  }
+
+                  final url = resource.url.toString();
+
+                  await _tryHandleRedirect(
+                    url,
+                    controller: controller,
+                  );
+                },
+                shouldInterceptRequest: (controller, request) async {
+                  if (_isDisposed) {
+                    return null;
+                  }
+
+                  final url = request.url.toString();
+
+                  final handled = await _tryHandleRedirect(
+                    url,
+                    controller: controller,
+                    loadBlankPage: false,
+                  );
+
+                  if (handled || _isHandlingRedirect) {
+                    return WebResourceResponse(
+                      contentType: 'text/html',
+                      contentEncoding: 'utf-8',
+                      statusCode: 200,
+                      reasonPhrase: 'OK',
+                      data: Uint8List.fromList(_getBlankPageHtml().codeUnits),
+                    );
+                  }
+
+                  return null; // Allow other requests to proceed normally
+                },
               ),
             ),
             if (_isLoading && !_errorPageShown)
