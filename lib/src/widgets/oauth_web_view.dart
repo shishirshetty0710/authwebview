@@ -274,6 +274,14 @@ class _OAuthWebViewState extends State<OAuthWebView>
 
     if (_authorizationUrl == null || _userAgent == null) {
       return Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          title: const Text('AuthWebView Example'),
+          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+        ),
         backgroundColor: backgroundColor,
         body: Center(
           child: widget.loadingWidget ?? const CircularProgressIndicator(),
@@ -287,6 +295,14 @@ class _OAuthWebViewState extends State<OAuthWebView>
         return true;
       },
       child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          title: const Text('AuthWebView Example'),
+          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+        ),
         backgroundColor: backgroundColor,
         resizeToAvoidBottomInset: false,
         body: Stack(
