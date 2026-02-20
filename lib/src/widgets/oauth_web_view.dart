@@ -280,7 +280,7 @@ class _OAuthWebViewState extends State<OAuthWebView>
             onPressed: () => Navigator.of(context).pop(),
           ),
           title: const Text('MyChart Login'),
-          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+          backgroundColor: const Color.fromARGB(255, 61, 140, 206),
         ),
         backgroundColor: backgroundColor,
         body: Center(
@@ -301,7 +301,7 @@ class _OAuthWebViewState extends State<OAuthWebView>
             onPressed: () => Navigator.of(context).pop(),
           ),
           title: const Text('MyChart Login'),
-          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+          backgroundColor: const Color.fromARGB(255, 61, 140, 206),
         ),
         backgroundColor: backgroundColor,
         resizeToAvoidBottomInset: false,
