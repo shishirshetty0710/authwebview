@@ -300,7 +300,7 @@ class _OAuthWebViewState extends State<OAuthWebView>
             icon: const Icon(Icons.arrow_back),
             onPressed: () => Navigator.of(context).pop(),
           ),
-          title: const Text('AuthWebView Example'),
+          title: const Text('MyChart Login'),
           backgroundColor: Theme.of(context).colorScheme.primaryContainer,
         ),
         backgroundColor: backgroundColor,
